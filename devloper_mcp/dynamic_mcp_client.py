@@ -123,188 +123,151 @@ async def main():
 
 
             # =================================================
-            # 3. FIRST LLM CALL
+            # 3. LLM CALLS
             #
             # LLM decides which MCP tool to use
             # =================================================
+            while True:
+                response = groq_client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
 
-            response = groq_client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                    messages=messages,
 
-                messages=messages,
+                    tools=llm_tools,
 
-                tools=llm_tools,
-
-                tool_choice="auto"
-            )
-
-
-            # Get assistant response
-            assistant_message = response.choices[0].message
-
-
-            # =================================================
-            # 4. CHECK WHETHER LLM WANTS A TOOL
-            # =================================================
-
-            if not assistant_message.tool_calls:
-
-                print("===== FINAL ANSWER =====")
-                print(assistant_message.content)
-
-                return
-
-
-            # =================================================
-            # 5. ADD ASSISTANT TOOL CALL TO CONVERSATION
-            # =================================================
-
-            messages.append(
-                assistant_message
-            )
-
-
-            # =================================================
-            # 6. PROCESS TOOL CALLS
-            # =================================================
-
-            for tool_call in assistant_message.tool_calls:
-
-                # --------------------------------------------
-                # Extract tool name
-                # --------------------------------------------
-
-                tool_name = tool_call.function.name
-
-
-                # --------------------------------------------
-                # Extract tool arguments
-                # --------------------------------------------
-
-                arguments = json.loads(
-                    tool_call.function.arguments
+                    tool_choice="auto"
                 )
 
 
-                print("===== LLM TOOL CALL =====")
-
-                print(
-                    "Tool:",
-                    tool_name
-                )
-
-                print(
-                    "Arguments:",
-                    arguments
-                )
+                # Get assistant response
+                assistant_message = response.choices[0].message
 
 
                 # =================================================
-                # 7. EXECUTE MCP TOOL
+                # 4. CHECK WHETHER LLM WANTS A TOOL
                 # =================================================
 
-                result = await session.call_tool(
-                    tool_name,
-                    arguments=arguments
-                )
+                if not assistant_message.tool_calls:
 
+                    print("===== FINAL ANSWER =====")
+                    print(assistant_message.content)
 
-                print("\n===== MCP TOOL EXECUTED =====")
-
-                print(
-                    "Tool:",
-                    tool_name
-                )
+                    return
 
 
                 # =================================================
-                # 8. EXTRACT MCP RESULT
-                # =================================================
-
-                if result.isError:
-
-                    tool_result = (
-                        "The MCP tool failed: "
-                        + str(result.content)
-                    )
-
-                elif result.structuredContent:
-
-                    tool_result = str(
-                        result.structuredContent.get(
-                            "result",
-                            result.structuredContent
-                        )
-                    )
-
-                else:
-
-                    # Fallback for tools that only return
-                    # TextContent
-                    tool_result = "\n".join(
-                        item.text
-                        for item in result.content
-                        if hasattr(item, "text")
-                    )
-
-
-                print(
-                    "Result received from MCP."
-                )
-
-
-                # =================================================
-                # 9. SEND MCP RESULT BACK TO LLM
+                # 5. ADD ASSISTANT TOOL CALL TO CONVERSATION
                 # =================================================
 
                 messages.append(
-                    {
-                        "role": "tool",
-
-                        "tool_call_id":
-                            tool_call.id,
-
-                        "content":
-                            tool_result
-                    }
+                    assistant_message
                 )
 
 
-            # =================================================
-            # 10. SECOND LLM CALL
-            #
-            # LLM now has:
-            # - Original user request
-            # - Its tool call
-            # - MCP tool result
-            # =================================================
+                # =================================================
+                # 6. PROCESS TOOL CALLS
+                # =================================================
 
-            final_response = (
-                groq_client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
+                for tool_call in assistant_message.tool_calls:
 
-                    messages=messages
-                )
-            )
+                    # --------------------------------------------
+                    # Extract tool name
+                    # --------------------------------------------
+
+                    tool_name = tool_call.function.name
 
 
-            # =================================================
-            # 11. FINAL ANSWER
-            # =================================================
+                    # --------------------------------------------
+                    # Extract tool arguments
+                    # --------------------------------------------
 
-            final_message = (
-                final_response
-                .choices[0]
-                .message
-            )
+                    arguments = json.loads(
+                        tool_call.function.arguments
+                    )
 
-            print("\n====================================")
-            print("===== FINAL ANSWER =====")
-            print("====================================\n")
 
-            print(
-                final_message.content
-            )
+                    print("===== LLM TOOL CALL =====")
+
+                    print(
+                        "Tool:",
+                        tool_name
+                    )
+
+                    print(
+                        "Arguments:",
+                        arguments
+                    )
+
+
+                    # =================================================
+                    # 7. EXECUTE MCP TOOL
+                    # =================================================
+
+                    result = await session.call_tool(
+                        tool_name,
+                        arguments=arguments
+                    )
+
+
+                    print("\n===== MCP TOOL EXECUTED =====")
+
+                    print(
+                        "Tool:",
+                        tool_name
+                    )
+
+
+                    # =================================================
+                    # 8. EXTRACT MCP RESULT
+                    # =================================================
+
+                    if result.isError:
+
+                        tool_result = (
+                            "The MCP tool failed: "
+                            + str(result.content)
+                        )
+
+                    elif result.structuredContent:
+
+                        tool_result = str(
+                            result.structuredContent.get(
+                                "result",
+                                result.structuredContent
+                            )
+                        )
+
+                    else:
+
+                        # Fallback for tools that only return
+                        # TextContent
+                        tool_result = "\n".join(
+                            item.text
+                            for item in result.content
+                            if hasattr(item, "text")
+                        )
+
+
+                    print(
+                        "Result received from MCP."
+                    )
+
+
+                    # =================================================
+                    # 9. SEND MCP RESULT BACK TO LLM
+                    # =================================================
+
+                    messages.append(
+                        {
+                            "role": "tool",
+
+                            "tool_call_id":
+                                tool_call.id,
+
+                            "content":
+                                tool_result
+                        }
+                    )
 
 
 # ============================================================
