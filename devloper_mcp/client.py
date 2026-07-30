@@ -1,51 +1,99 @@
-import asyncio
 import sys
-
-from mcp import ClientSession, StdioServerParameters
+import asyncio 
+from mcp import StdioServerParameters
 from mcp.client.stdio import stdio_client
+from mcp import ClientSession
 
-
-# Configure MCP Server
+#----------------------------
+# SERVER CONFIGURATION
+#----------------------------
 server_params = StdioServerParameters(
     command=sys.executable,
-    args=["server.py"]
+    args=["server.py"]    
 )
 
-
 async def main():
-
-    # Start MCP server using stdio
-    async with stdio_client(server_params) as (read, write):
-
-        # Create MCP Client Session
-        async with ClientSession(read, write) as session:
-
-            # Initialize the connection
+    
+    #---------------------------------
+    # START MCP SERVER
+    #---------------------------------
+    async with stdio_client(server_params) as (read,write):
+        
+        #----------------------------
+        # CREATE A CLIENT SESSION
+        #----------------------------
+        async with ClientSession(read,write) as session:
+            
+            #---------------------------
+            # INIRIALIZE SESSION
+            #---------------------------
             await session.initialize()
-
-            #--------------------------------
-            # Discover tools
-            #--------------------------------
+            print("\nMCP Server connection initialized.")
+            
+            # =================================================
+            # DISCOVER TOOLS
+            # =================================================
+            
+            print("\n==TOOLS==:")
             tools = await session.list_tools()
-            print(tools)
-            
-            print("="*50)
-            
-            print("File Content:\n\n")
-            
-            #--------------------------------
-            # Call tool 
-            #--------------------------------
-            
-            result = await session.call_tool(
-                "read_pdf",
-                arguments={  # hear file_path is the arguement name that read_file function accepts.add()
-                    "file_path" :"C:/Users/chait/OneDrive/Desktop/FYP/Data/Data Science/DSM NOTES UNIT 3.pdf"
-                } 
+            for tool in tools.tools:
+                print(tool.name)
                 
-            )
-
-            print(result)
-
+            # =================================================
+            # DISCOVER RESOURCES
+            # =================================================
+            
+            print("\n+==RESOURCES==:")
+            resources = await session.list_resources()
+            for resource in resources.resources:
+                print(resource.uri)
+                
+            
+            # =================================================
+            # DISCOVER PROMPTS
+            # =================================================
+            
+            print("\n==PROMPTS")
+            prompts = await session.list_prompts()
+            for prompt in prompts.prompts:
+                print(prompt.name)
+                
+            
+            # =================================================
+            # CALL TOOL
+            # =================================================
+            
+            tool_result = await session.call_tool(
+                "add_numbers",
+                arguments={
+                    "a":10,
+                    "b":20
+                }
+            )    
+            
+            print("tool result:\n",tool_result,"\n\n")
+            print("===================================")
+            # =================================================
+            # READ RESOURCE
+            # =================================================
+            
+            resource_result = await session.read_resource(
+                    "info://server" 
+            )            
+            
+            print("Resource result:\n",resource_result,"\n\n")
+            print("===================================")
+            
+            # =================================================
+            # GET PROMPT
+            # =================================================
+            
+            prompt_result = await session.get_prompt(
+                "greeting_prompt",
+                arguments={"user":"Aahilya"}
+            )            
+            
+            print("Prompt result:\n",prompt_result,"\n\n")
+                                
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main())            
